@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Roster Run · Bus crew rostering (prototype)</title>
+  <meta name="description" content="Roster Run – a clickable prototype for assigning drivers, assistants and buses to routes.">
+  <meta name="theme-color" content="#1e3a5f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Roster Run">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar no-print">
+    <div class="brand">
+      <img src="icon.svg" alt="" width="34" height="34">
+      <div>
+        <div class="brand-name">Roster Run</div>
+        <div class="brand-sub">Ipswich depot · crew &amp; bus rostering</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="demo-pill" title="All names, numbers and regos are made up">Demo data</span>
+      <button class="btn btn-ghost-light" id="resetBtn" type="button">Reset demo data</button>
+    </div>
+  </header>
+  <nav class="tabs no-print" id="tabs" aria-label="Sections">
+    <a href="#/dashboard" data-view="dashboard">Dashboard</a>
+    <a href="#/roster" data-view="roster">Roster</a>
+    <a href="#/drivers" data-view="drivers">Drivers</a>
+    <a href="#/assistants" data-view="assistants">Assistants</a>
+    <a href="#/buses" data-view="buses">Buses</a>
+    <a href="#/routes" data-view="routes">Routes</a>
+    <a href="#/trips" data-view="trips">Trip log</a>
+    <a href="#/runsheet" data-view="runsheet">Run sheet</a>
+  </nav>
+  <div class="demo-banner no-print">Prototype with <strong>fake demo data</strong> – nothing here is real, and changes are saved only in this browser.</div>
+  <main id="view" tabindex="-1"></main>
+
+  <dialog id="modal">
+    <form method="dialog" id="modalForm" novalidate>
+      <div class="modal-head">
+        <h2 id="modalTitle"></h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot" id="modalFoot"></div>
+    </form>
+  </dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
