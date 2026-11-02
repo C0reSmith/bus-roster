@@ -2,9 +2,9 @@
 (() => {
 'use strict';
 
-const STORE_KEY = 'rosterrun.v2';
-const DATA_VERSION = 2;
-try { localStorage.removeItem('rosterrun.v1'); } catch {}
+const STORE_KEY = 'rosterrun.v3';
+const DATA_VERSION = 3;
+const OLD_KEYS = ['rosterrun.v2', 'rosterrun.v1'];
 const EXPIRY_WARN_DAYS = 30;
 const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DAY_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -90,6 +90,7 @@ function seed() {
   ];
   // default crews
   const crew = { r1:['d1','a1','b1'], r2:['d2',null,'b2'], r3:['d3','a2','b3'], r4:['d4',null,'b4'], r5:['d5','a3','b5'], r6:['d6',null,'b6'], r7:['d7',null,'b8'], r8:['d8','a4','b9'] };
+  seed.crewBus = Object.fromEntries(Object.entries(crew).map(([k, v]) => [k, v[2]]));
   const assignments = {};
   for (let w = -1; w <= 1; w++) {
     const wMon = addDays(mon, w * 7);
@@ -113,23 +114,114 @@ function seed() {
   set(3,'r4','PM',{ driverId:'d3', note:'Daniel off early – cover' });       // clashes with S103 PM
   set(4,'r2','AM',{ busId:'b7' });                                           // bus out of service
   set(3,'r5','AM',{ driverId:null });                                        // unfilled
-  return { version:DATA_VERSION, seededOn:t, drivers, assistants, buses, routes, assignments };
+  for (const [i, r, run, patch] of PAX_DEMO_SWAPS) set(i, r, run, patch);     // passenger warnings
+  return { version:DATA_VERSION, seededOn:t, drivers, assistants, buses, routes, assignments, passengers: seedPassengers() };
 }
+// Deliberate swaps (relative to this week's Monday) so the passenger checks have something to show
+const PAX_DEMO_SWAPS = [
+  [0, 'r7', 'MID', { busId:'b5', note:'B08 booked for servicing – Sprinter covering' }],   // 16 seniors > 14 seats
+  [2, 'r5', 'PM',  { busId:'b10', note:'B05 hoist service – spare bus' }],          // wheelchair passengers, no hoist
+];
+// Fictional passengers. Runs = run ids on the passenger's route (AM / PM / MID / DAY).
+function seedPassengers() {
+  return PAX_SEED.map(([id,name,routeId,runs,stop,guardian,phone,wheelchair,notes,active]) => ({ id,name,routeId,runs:runs.split(' '),stop,guardian,phone,wheelchair,notes,active }));
+}
+const PAX_SEED = [
+    ["p1", "Ava Kowalczyk", "r1", "AM PM", "12 Banksia Cres, Wattle Creek", "Marta Kowalczyk (mum)", "0491 570 110", false, "", true],
+    ["p2", "Noah Fitzgerald-Hale", "r1", "AM PM", "Cnr Quoll St & Ridge Rd, Wattle Creek", "Simon Hale (dad)", "0491 571 147", false, "", true],
+    ["p3", "Isla Tupou", "r1", "AM PM", "48 Myrtle Ave, Bindarra", "Losana Tupou (mum)", "0491 572 184", false, "Asthma – puffer in school bag", true],
+    ["p4", "Ethan Marchetti", "r1", "AM", "7 Lorikeet Pl, Bindarra", "Gina Marchetti (mum)", "0491 573 221", false, "Dad collects in the afternoon", true],
+    ["p5", "Zara Okonkwo", "r1", "AM PM", "Coolabah Flats shelter, Station Rd", "Chidi Okonkwo (dad)", "0491 574 258", false, "", true],
+    ["p6", "Lachlan Burgess", "r1", "AM PM", "3 Redgum Ct, Coolabah Flats", "Tracey Burgess (mum)", "0491 575 295", false, "", true],
+    ["p7", "Mia Nguyen", "r1", "AM PM", "21 Pelican Tce, Kellerton CBD", "Thanh Nguyen (dad)", "0491 576 332", false, "", true],
+    ["p8", "Oliver Stanmore", "r1", "PM", "Wattle Library stop, Tamarind St", "Fiona Stanmore (mum)", "0491 577 369", false, "Before-school care in the mornings", true],
+    ["p9", "Ruby Castellanos", "r1", "AM PM", "9 Spinifex St, Wattle Creek", "Luis Castellanos (dad)", "0491 578 406", false, "Moved away – kept for records", false],
+    ["p10", "Jack Pemberton", "r2", "AM PM", "9 Sandpiper Way, Tallowood", "Alice Pemberton (mum)", "0491 579 443", false, "", true],
+    ["p11", "Chloe Ahmadi", "r2", "AM PM", "Heron Point jetty stop, Esplanade Rd", "Reza Ahmadi (dad)", "0491 570 480", false, "", true],
+    ["p12", "Harvey Lindqvist", "r2", "AM PM", "30 Fernleaf Dr, Brackenvale", "Annika Lindqvist (mum)", "0491 571 517", false, "Peanut allergy – EpiPen in front pocket of bag", true],
+    ["p13", "Sienna Walsh", "r2", "AM PM", "64 Corella St, North Kellerton", "Bridget Walsh (grandmother)", "0491 572 554", false, "", true],
+    ["p14", "Kai Herewini", "r2", "AM", "15 Tallowood Rise, Tallowood", "Aroha Herewini (mum)", "0491 573 591", false, "", true],
+    ["p15", "Grace Delacroix", "r2", "AM PM", "2 Brolga Cl, Brackenvale", "Pierre Delacroix (dad)", "0491 574 628", false, "", true],
+    ["p16", "Liam Achterberg", "r3", "AM PM", "18 Wren St, Silverleaf", "Joost Achterberg (dad)", "0491 575 665", false, "", true],
+    ["p17", "Amelia Faleolo", "r3", "AM PM", "South Silverleaf shops stop, Kestrel Rd", "Sina Faleolo (mum)", "0491 576 702", false, "", true],
+    ["p18", "Henry Osei", "r3", "AM PM", "5 Gully Ln, Ferngate Heights", "Abena Osei (mum)", "0491 577 739", false, "Type 1 diabetic – may eat snacks on the bus", true],
+    ["p19", "Charlotte Reyes", "r3", "AM PM", "77 Ironwood Ave, Ferngate Heights", "Marco Reyes (dad)", "0491 578 776", false, "", true],
+    ["p20", "Archie Mulvaney", "r3", "AM PM", "Larkspur Central interchange, Bay 3", "Kerry Mulvaney (mum)", "0491 579 813", false, "", true],
+    ["p21", "Matilda Sorensen", "r3", "AM PM", "40 Sunbird Dr, Silverleaf", "Erik Sorensen (dad)", "0491 570 850", false, "", true],
+    ["p22", "Leo Papadakis", "r3", "PM", "11 Coachwood Pl, South Silverleaf", "Eleni Papadakis (mum)", "0491 571 887", false, "Afternoons only", true],
+    ["p23", "Evie Baptiste", "r3", "AM PM", "6 Lilly Pilly Ct, Larkspur Central", "Claudette Baptiste (mum)", "0491 572 924", false, "", true],
+    ["p24", "Hugo Strand", "r3", "AM PM", "29 Larkspur Rd, Larkspur Central", "Nils Strand (dad)", "0491 573 961", false, "Changed schools – inactive from Term 4", false],
+    ["p25", "Willow Hartigan", "r4", "AM PM", "22 Saltbush Rd, Ironbark Plains", "Dee Hartigan (mum)", "0491 574 998", false, "", true],
+    ["p26", "Mason Kariuki", "r4", "AM PM", "Whipbird Park oval stop, Grevillea St", "Wanjiru Kariuki (mum)", "0491 575 035", false, "", true],
+    ["p27", "Ivy Montague", "r4", "AM PM", "8 Paperbark Cl, Glenhollow", "Rupert Montague (dad)", "0491 576 072", false, "Bee sting allergy", true],
+    ["p28", "Thomas Ng", "r4", "AM PM", "51 Bluegum Creek Rd, Ironbark Plains", "Wendy Ng (mum)", "0491 577 109", false, "", true],
+    ["p29", "Layla Haddad", "r4", "AM", "3 Kookaburra Ct, Glenhollow", "Omar Haddad (dad)", "0491 578 146", false, "", true],
+    ["p30", "Samuel Price-Ward", "r5", "AM PM", "14 Acacia Way, Yarrabee", "Joanne Price (mum)", "0491 579 183", true, "Power chair – hoist and 4-point tie-down", true],
+    ["p31", "Aria Mendoza", "r5", "AM PM", "9 Waratah St, Millview", "Carmen Mendoza (mum)", "0491 570 220", true, "Manual chair. Seizure plan in run folder", true],
+    ["p32", "Jasper Thornbury", "r5", "AM PM", "26 Copperview Dr, Copperview", "Neil Thornbury (dad)", "0491 571 257", false, "Autism – prefers front seat, has ear defenders", true],
+    ["p33", "Hazel Ikeda", "r5", "AM PM", "5 Bunyarra Ln, Bunyarra", "Kenji Ikeda (dad)", "0491 572 294", true, "Manual chair", true],
+    ["p34", "Felix Abernethy", "r5", "AM PM", "33 Millview Pde, Millview", "Sarah Abernethy (mum)", "0491 573 331", false, "Needs harness seat", true],
+    ["p35", "Poppy Vandermeer", "r6", "AM PM", "17 Tuart St, Bindarra", "Anke Vandermeer (mum)", "0491 574 368", false, "", true],
+    ["p36", "Arlo Chaudhry", "r6", "AM PM", "Hazelgrove general store stop", "Sunil Chaudhry (dad)", "0491 575 405", false, "", true],
+    ["p37", "Frankie O’Dowd", "r6", "AM PM", "4 Hakea Pl, Hazelgrove", "Maeve O’Dowd (mum)", "0491 576 442", false, "", true],
+    ["p38", "Elsie Moana", "r6", "PM", "60 Wattle Creek Rd, Wattle Creek", "Tui Moana (aunt)", "0491 577 479", false, "Afternoons only", true],
+    ["p39", "Margaret Ellery", "r7", "MID", "Bramblewood Fair Village, main gate", "Paul Ellery (son)", "0491 578 516", false, "", true],
+    ["p40", "Doug Fairweather", "r7", "MID", "Bramblewood Fair Village, main gate", "Lyn Fairweather (wife)", "0491 579 553", false, "", true],
+    ["p41", "Beryl Okafor", "r7", "MID", "Bramblewood Fair Village, Unit 12", "Grace Okafor (daughter)", "0491 570 590", false, "Hearing aid – speak clearly", true],
+    ["p42", "Kevin Lund", "r7", "MID", "8 Orchid St, Bunyarra", "Karen Lund (daughter)", "0491 571 627", false, "", true],
+    ["p43", "Joan Petrakis", "r7", "MID", "Bunyarra Senior Citizens Hall", "Nick Petrakis (son)", "0491 572 664", true, "Uses wheelchair – ramp entry", true],
+    ["p44", "Ron Delacourt", "r7", "MID", "Bunyarra Senior Citizens Hall", "Anne Delacourt (wife)", "0491 573 701", false, "", true],
+    ["p45", "Shirley Mattock", "r7", "MID", "22 Jacaranda Dr, Bunyarra", "Gary Mattock (son)", "0491 574 738", false, "Walking frame – stow in luggage rack", true],
+    ["p46", "Gwen Tavita", "r7", "MID", "Riverbend Plaza taxi rank stop", "Malia Tavita (daughter)", "0491 575 775", false, "", true],
+    ["p47", "Alan Brightwater", "r7", "MID", "Riverbend Plaza taxi rank stop", "Ruth Brightwater (wife)", "0491 576 812", false, "Diabetic", true],
+    ["p48", "Pat Sullivan-Reid", "r7", "MID", "14 Cassia Cl, Bramblewood", "Dan Reid (son)", "0491 577 849", false, "", true],
+    ["p49", "Nola Chen", "r7", "MID", "Bramblewood Fair Village, Unit 3", "Vivian Chen (daughter)", "0491 578 886", false, "", true],
+    ["p50", "Ivan Kostic", "r7", "MID", "5 Boronia St, Bunyarra", "Mira Kostic (daughter)", "0491 579 923", false, "", true],
+    ["p51", "Dawn Hellier", "r7", "MID", "Bramblewood Fair Village, Unit 27", "Steve Hellier (son)", "0491 570 960", false, "Walking frame", true],
+    ["p52", "Bruce Ogilvie", "r7", "MID", "31 Tamarind St, Bunyarra", "Helen Ogilvie (wife)", "0491 571 997", false, "", true],
+    ["p53", "Valerie Ashdown", "r7", "MID", "Riverbend Plaza taxi rank stop", "Jenny Ashdown (niece)", "0491 572 034", false, "", true],
+    ["p54", "Geoffrey Pike", "r7", "MID", "Bramblewood Fair Village, Unit 9", "Colin Pike (brother)", "0491 573 071", false, "Pacemaker", true],
+    ["p55", "Elaine Mortlock", "r7", "MID", "10 Wisteria Ln, Bramblewood", "Robyn Mortlock (daughter)", "0491 574 108", false, "In respite care until further notice", false],
+    ["p56", "Tahlia Morven", "r8", "DAY", "Kellerton CBD coach bay", "Jess Morven (mum)", "0491 575 145", false, "Team captain", true],
+    ["p57", "Cooper Langridge", "r8", "DAY", "Kellerton CBD coach bay", "Mark Langridge (dad)", "0491 576 182", false, "", true],
+    ["p58", "Indi Rafferty", "r8", "DAY", "Kellerton CBD coach bay", "Siobhan Rafferty (mum)", "0491 577 219", false, "Asthma – puffer with coach", true],
+  ];
 
 /* ---------- state ---------- */
 let S;
 function load() {
   try { S = JSON.parse(localStorage.getItem(STORE_KEY)); } catch { S = null; }
-  if (!S || S.version !== DATA_VERSION) { S = seed(); save(); }
+  if (!S || S.version !== DATA_VERSION) {
+    let old = null;
+    try { old = JSON.parse(localStorage.getItem('rosterrun.v2')); } catch {}
+    S = old && old.version === 2 ? migrateV2(old) : seed();
+    save();
+  }
+  try { OLD_KEYS.forEach(k => localStorage.removeItem(k)); } catch {}
+}
+// v2 -> v3: keep the visitor's drivers, buses, routes and roster; add the demo passengers
+// (only for routes that still exist) and the two demo bus swaps if those runs are untouched.
+function migrateV2(old) {
+  const ids = new Set(old.routes.map(r => r.id));
+  const passengers = seedPassengers().filter(p => ids.has(p.routeId));
+  const fresh = seed();
+  for (const [i, r, run, patch] of PAX_DEMO_SWAPS) {
+    const k = `${addDays(mondayOf(todayStr()), i)}|${r}|${run}`;
+    if (old.assignments[k] && fresh.assignments[k] && old.assignments[k].busId === seed.crewBus[r] && !old.assignments[k].note) old.assignments[k] = { ...old.assignments[k], ...patch };
+  }
+  return { ...old, version: DATA_VERSION, passengers };
 }
 function save() { localStorage.setItem(STORE_KEY, JSON.stringify(S)); }
-const ui = { week: mondayOf(todayStr()), day: todayStr(), rosterMode: null, palette: 'drivers', search: {}, tripFrom: null, tripTo: null, sheetDate: todayStr() };
+const ui = { week: mondayOf(todayStr()), day: todayStr(), rosterMode: null, palette: 'drivers', search: {}, tripFrom: null, tripTo: null, sheetDate: todayStr(), paxRoute: '' };
 
 const byId = (list, id) => id ? S[list].find(x => x.id === id) : null;
 const driver = id => byId('drivers', id);
 const assistant = id => byId('assistants', id);
 const bus = id => byId('buses', id);
 const route = id => byId('routes', id);
+// Passengers ride a route/run; whichever bus is rostered on that run that day carries them.
+const paxFor = (routeId, runId) => (S.passengers || []).filter(p => p.active && p.routeId === routeId && (p.runs || []).includes(runId)).sort((a, b) => a.name.localeCompare(b.name));
+const paxOnRun = run => paxFor(run.route.id, run.run.id);
 
 /* ---------- runs & checks ---------- */
 function runsOn(date) {
@@ -155,7 +247,8 @@ function runIssues(run, a = run.a, sameDay = null) {
   const dv = driver(a.driverId), as = assistant(a.assistantId), bs = bus(a.busId);
   if (!a.driverId) add('warn', 'unfilled', 'No driver assigned');
   if (!a.busId) add('warn', 'unfilled', 'No bus assigned');
-  if (run.route.needsAssistant && !a.assistantId) add('err', 'assistant', 'Route needs an assistant – none assigned');
+  const pax = paxOnRun(run);
+  if (run.route.needsAssistant && !a.assistantId) add('err', 'assistant', `Route needs an assistant – none assigned${pax.length ? ` (${pax.length} passenger${pax.length === 1 ? '' : 's'} on board)` : ''}`);
   if (dv) {
     const c = others.find(o => o.a.driverId === dv.id);
     if (c) add('err', 'clash', `${dv.name} double-booked with ${runLabel(c)} (${fmtTime(c.start)}–${fmtTime(c.end)})`);
@@ -177,6 +270,9 @@ function runIssues(run, a = run.a, sameDay = null) {
     if (+bs.capacity < +run.route.minCapacity) add('err', 'capacity', `${bs.fleetNo} seats ${bs.capacity}; route needs ${run.route.minCapacity}`);
     if (run.route.wheelchair && !bs.wheelchair) add('err', 'access', `Route needs wheelchair access; ${bs.fleetNo} has none`);
     if (bs.coiExpiry && bs.coiExpiry < run.date) add('err', 'coi', `${bs.fleetNo} inspection certificate expired ${fmtShort(bs.coiExpiry)}`);
+    if (pax.length > +bs.capacity) add('err', 'overcap', `${pax.length} passengers booked; ${bs.fleetNo} only seats ${bs.capacity}`);
+    const wp = pax.filter(p => p.wheelchair);
+    if (wp.length && !bs.wheelchair) add('err', 'paxaccess', `Wheelchair passenger${wp.length === 1 ? '' : 's'} (${wp.map(p => p.name).join(', ')}) – ${bs.fleetNo} has no wheelchair access`);
   }
   return out;
 }
@@ -201,7 +297,7 @@ function candidateNote(run, kind, id) {
   });
   if (!is.length) return '';
   const i = is[0];
-  const short = { clash: 'busy ' + (i.msg.match(/with (\S+ \S+)/) || [,''])[1], auth: i.sev === 'err' ? 'authorisation expired' : 'auth expiring', status: i.msg.split(' is ')[1], licence: 'licence too low', bluecard: 'blue card expired', bus: 'out of service', capacity: 'too few seats', access: 'no wheelchair access', coi: 'COI expired' }[i.type] || i.msg;
+  const short = { clash: 'busy ' + (i.msg.match(/with (\S+ \S+)/) || [,''])[1], auth: i.sev === 'err' ? 'authorisation expired' : 'auth expiring', status: i.msg.split(' is ')[1], licence: 'licence too low', bluecard: 'blue card expired', bus: 'out of service', capacity: 'too few seats', access: 'no wheelchair access', coi: 'COI expired', overcap: 'too few seats for passengers', paxaccess: 'no access for wheelchair passenger' }[i.type] || i.msg;
   return short;
 }
 
@@ -283,6 +379,8 @@ views.dashboard = () => {
   const errs = all.filter(i => i.sev === 'err');
   const comp = complianceAlerts();
   const inService = S.buses.filter(b => b.status === 'In service').length;
+  const paxActive = (S.passengers || []).filter(p => p.active);
+  const paxToday = new Set(today.flatMap(r => paxOnRun(r).map(p => p.id))).size;
   const now = nowMin();
   const status = r => toMin(r.end) <= now ? ['done', 'Completed'] : toMin(r.start) <= now ? ['live', 'On the road'] : ['next', 'Upcoming'];
   const grouped = []; const seen = {};
@@ -299,6 +397,7 @@ views.dashboard = () => {
     <div class="kpi ${errs.length ? 'k-err' : ''}"><span class="kpi-n">${errs.length}</span><span class="kpi-l">Clashes &amp; problems this week</span></div>
     <div class="kpi ${comp.length ? 'k-warn' : ''}"><span class="kpi-n">${comp.length}</span><span class="kpi-l">Compliance alerts</span></div>
     <div class="kpi"><span class="kpi-n">${inService}<small>/${S.buses.length}</small></span><span class="kpi-l">Buses in service</span></div>
+    <a class="kpi kpi-link" href="#/passengers"><span class="kpi-n">${paxActive.length}</span><span class="kpi-l">Passengers · ${paxToday} riding today${paxActive.some(p => p.wheelchair) ? ` · ${paxActive.filter(p => p.wheelchair).length} ♿` : ''}</span></a>
   </section>
   <div class="dash-grid">
     <section class="card">
@@ -308,7 +407,7 @@ views.dashboard = () => {
         return `<button class="today-run sev-${sevOf(is)}" data-open="${r.key}">
           <span class="tr-time">${fmtTime(r.start)}<small>${fmtTime(r.end)}</small></span>
           <span class="tr-main"><strong>${esc(r.route.code)} ${esc(r.run.label)}</strong> ${esc(r.route.name)}
-            <span class="tr-crew">${d ? '👤 ' + esc(d.name) : '<em class="miss">No driver</em>'} · ${b ? '🚌 ' + esc(b.fleetNo) + ' ' + esc(b.rego) : '<em class="miss">No bus</em>'}${a ? ' · 🦺 ' + esc(a.name) : r.route.needsAssistant ? ' · <em class="miss">No assistant</em>' : ''}</span>
+            <span class="tr-crew">${d ? '👤 ' + esc(d.name) : '<em class="miss">No driver</em>'} · ${b ? '🚌 ' + esc(b.fleetNo) + ' ' + esc(b.rego) : '<em class="miss">No bus</em>'}${a ? ' · 🦺 ' + esc(a.name) : r.route.needsAssistant ? ' · <em class="miss">No assistant</em>' : ''}${paxOnRun(r).length ? ' · 👥 ' + paxOnRun(r).length + ' pax' : ''}</span>
           </span>
           <span class="tr-status st-${cls}">${lbl}${is.length ? `<span class="pill ${sevOf(is)}">${is.length} ⚠</span>` : ''}</span>
         </button>`; }).join('')}</div>` : '<p class="empty">No runs scheduled today.</p>'}
@@ -340,6 +439,7 @@ function cellHTML(run, issues, compact = false) {
     <div class="slot ${d ? '' : 'vacant'}" data-slot="driverId">${d ? `<span class="ic">👤</span>${esc(shortName(d.name))}` : '<span class="ic">👤</span>Driver?'}</div>
     <div class="slot ${b ? '' : 'vacant'}" data-slot="busId">${b ? `<span class="ic">🚌</span>${esc(b.fleetNo)} <span class="muted">${esc(b.rego)}</span>` : '<span class="ic">🚌</span>Bus?'}</div>
     ${a ? `<div class="slot" data-slot="assistantId"><span class="ic">🦺</span>${esc(shortName(a.name))}</div>` : run.route.needsAssistant ? `<div class="slot vacant need" data-slot="assistantId"><span class="ic">🦺</span>Assistant needed</div>` : `<div class="slot vacant opt" data-slot="assistantId"><span class="ic">🦺</span>—</div>`}
+    ${(() => { const px = paxOnRun(run); return px.length ? `<div class="slot paxline" title="${esc(px.map(p => p.name).join(', '))}"><span class="ic">👥</span>${px.length} passenger${px.length === 1 ? '' : 's'}${px.some(p => p.wheelchair) ? ' · ♿' + px.filter(p => p.wheelchair).length : ''}</div>` : ''; })()}
     ${compact && issues.length ? issueList(issues) : ''}
   </div>`;
 }
@@ -383,7 +483,7 @@ views.roster = () => {
         <thead><tr><th class="rowh">Route / run</th>${usedDays.map(d => `<th class="${d === t ? 'is-today' : ''}"><span>${DAY_NAMES[dow(d)]}</span> ${parseD(d).getDate()} ${MONTHS[parseD(d).getMonth()]}</th>`).join('')}</tr></thead>
         <tbody>${rows.map(({ r, run }) => `<tr>
           <th class="rowh"><strong>${esc(r.code)} <span class="runlbl">${esc(run.label)}</span></strong><span class="muted small">${fmtTime(run.start)}–${fmtTime(run.end)}</span><span class="rname">${esc(r.name)}</span>
-            <span class="tags">${r.needsAssistant ? '<span class="tag">Assistant</span>' : ''}${r.wheelchair ? '<span class="tag">♿</span>' : ''}<span class="tag">${r.minCapacity}+ seats</span></span></th>
+            <span class="tags">${r.needsAssistant ? '<span class="tag">Assistant</span>' : ''}${r.wheelchair ? '<span class="tag">♿</span>' : ''}<span class="tag">${r.minCapacity}+ seats</span>${paxFor(r.id, run.id).length ? `<span class="tag">👥 ${paxFor(r.id, run.id).length}</span>` : ''}</span></th>
           ${usedDays.map(d => { if (!r.days.includes(dow(d))) return `<td class="off ${d === t ? 'is-today' : ''}"></td>`;
             const runObj = runsOn(d).find(x => x.route.id === r.id && x.run.id === run.id); return `<td class="${d === t ? 'is-today' : ''}">${cellHTML(runObj, map[runObj.key] || [])}</td>`; }).join('')}
         </tr>`).join('')}</tbody>
@@ -438,7 +538,8 @@ function openRunEditor(key) {
     <label class="fld"><span>Assistant${run.route.needsAssistant ? ' <em class="req">required</em>' : ' <em class="muted">optional</em>'}</span><select name="assistantId">${opts(S.assistants, 'assistantId', a => a.name)}</select></label>
     <label class="fld"><span>Note</span><input name="note" maxlength="120" value="${esc(run.a.note || '')}" placeholder="e.g. covering for…"></label>
     <label class="check"><input type="checkbox" name="applyWeek"> Apply this crew to every ${esc(run.route.code)} ${esc(run.run.label)} run this week</label>
-    <div id="liveIssues" class="live-issues"></div>`;
+    <div id="liveIssues" class="live-issues"></div>
+    ${paxBlock(paxOnRun(run), run)}`;
   const foot = `<button type="button" class="btn btn-danger-ghost" data-act="clearrun">Clear run</button><span class="spacer"></span><button type="button" class="btn" data-close>Cancel</button><button value="save" class="btn btn-primary">Save</button>`;
   openModal(`${runLabel(run)} · ${fmtDate(run.date)}`, body, foot, () => {
     const f = $('#modalForm');
@@ -455,6 +556,23 @@ function openRunEditor(key) {
   };
   $$('#modalBody select').forEach(s => s.addEventListener('change', live));
   live();
+}
+
+function paxBlock(px, run) {
+  const wc = px.filter(p => p.wheelchair).length;
+  return `<section class="pax-block">
+    <div class="pax-head"><strong>Passengers (${px.length})</strong>${wc ? ` <span class="tag">♿ ${wc}</span>` : ''}<span class="spacer"></span><a class="link" href="#/passengers?route=${esc(run.route.id)}" data-close>Manage passengers →</a></div>
+    ${px.length ? `<ol class="pax-list">${px.map(p => `<li><span><strong>${esc(p.name)}</strong>${p.wheelchair ? ' <span class="tag" title="Wheelchair user">♿</span>' : ''}${p.notes ? ` <span class="muted small">· ${esc(p.notes)}</span>` : ''}</span><span class="muted small">${esc(p.stop)}</span></li>`).join('')}</ol>` : '<p class="muted small">No passengers booked on this run.</p>'}
+  </section>`;
+}
+// Passengers carried by a bus on a given day, grouped by run
+function busPaxOn(busId, date) {
+  return runsOn(date).filter(r => r.a.busId === busId).map(r => ({ run: r, pax: paxOnRun(r) }));
+}
+function paxDetails(groups, emptyText) {
+  const total = groups.reduce((n, g) => n + g.pax.length, 0);
+  if (!groups.length) return `<span class="muted small">${emptyText}</span>`;
+  return `<details class="pax-det"><summary><span class="count">${total}</span> on ${groups.length} run${groups.length === 1 ? '' : 's'}</summary>${groups.map(g => `<div class="small"><strong>${esc(g.label)}</strong> (${g.pax.length})${g.pax.length ? ': ' + g.pax.map(p => esc(p.name) + (p.wheelchair ? ' ♿' : '')).join(', ') : ''}</div>`).join('')}</details>`;
 }
 
 /* ---------- generic CRUD lists ---------- */
@@ -515,6 +633,7 @@ const ENT = {
       ['Status', b => `${statusBadge(b.status)}${b.notes && b.status !== 'In service' ? `<div class="muted small">${esc(b.notes)}</div>` : ''}`],
       ['COI', b => expiryBadge(b.coiExpiry)],
       ['Runs this week', b => countRuns('busId', b.id)],
+      ['Passengers today', b => paxDetails(busPaxOn(b.id, todayStr()).map(g => ({ label: runLabel(g.run), pax: g.pax })), 'Not rostered today')],
     ],
   },
   routes: {
@@ -538,10 +657,39 @@ const ENT = {
       ['Runs', r => r.runs.map(x => `<div><strong>${esc(x.label)}</strong> ${fmtTime(x.start)}–${fmtTime(x.end)}</div>`).join('')],
       ['Days', r => [1, 2, 3, 4, 5, 6, 0].filter(d => r.days.includes(d)).map(d => DAY_NAMES[d]).join(', ')],
       ['Needs', r => `${r.minCapacity}+ seats${r.needsAssistant ? '<div class="tag">Assistant</div>' : ''}${r.wheelchair ? ' <span class="tag">♿</span>' : ''}`],
+      ['Passengers', r => paxDetails(r.runs.map(x => ({ label: `${r.code} ${x.label}`, pax: paxFor(r.id, x.id) })), 'No runs')],
       ['Status', r => statusBadge(r.active ? 'Active' : 'Inactive')],
     ],
   },
+  passengers: {
+    title: 'Passengers', one: 'passenger', id: 'p',
+    fields: [
+      { k: 'name', label: 'Full name', req: true, wide: true },
+      { k: 'routeId', label: 'Route & runs', type: 'paxroute', wide: true, req: true },
+      { k: 'stop', label: 'Pickup stop / address', wide: true, ph: 'e.g. 12 Banksia Cres, Wattle Creek' },
+      { k: 'guardian', label: 'Guardian / contact name', ph: 'e.g. Jo Smith (mum)' },
+      { k: 'phone', label: 'Contact phone', type: 'tel' },
+      { k: 'wheelchair', label: 'Wheelchair user', type: 'checkbox' },
+      { k: 'active', label: 'Active (travelling)', type: 'checkbox' },
+      { k: 'notes', label: 'Medical / notes', type: 'textarea', wide: true },
+    ],
+    cols: [
+      ['Name', p => `<strong>${esc(p.name)}</strong>${p.wheelchair ? ' <span class="tag" title="Wheelchair user">♿ Wheelchair</span>' : ''}`],
+      ['Route / runs', p => { const r = route(p.routeId); return r ? `<strong>${esc(r.code)}</strong> ${r.runs.filter(x => (p.runs || []).includes(x.id)).map(x => `<span class="tag">${esc(x.label)}</span>`).join('') || '<em class="miss">No run</em>'}<div class="muted small">${esc(r.name)}</div>` : '<em class="miss">Unassigned</em>'; }],
+      ['Bus today', p => paxBusToday(p)],
+      ['Pickup stop', p => esc(p.stop)],
+      ['Contact', p => `${esc(p.guardian)}<div class="muted small">${esc(p.phone)}</div>`],
+      ['Medical / notes', p => `<span class="muted small">${esc(p.notes)}</span>`],
+      ['Status', p => statusBadge(p.active ? 'Active' : 'Inactive')],
+    ],
+  },
 };
+function paxBusToday(p) {
+  const r = route(p.routeId); if (!r || !p.active) return '<span class="muted">—</span>';
+  const runs = runsOn(todayStr()).filter(x => x.route.id === r.id && (p.runs || []).includes(x.run.id));
+  if (!runs.length) return '<span class="muted small">Not running today</span>';
+  return runs.map(x => { const b = bus(x.a.busId); const bad = (runIssues(x) || []).some(i => (i.type === 'overcap' || (i.type === 'paxaccess' && p.wheelchair))); return `<div class="nowrap"><span class="muted small">${esc(x.run.label)}</span> ${b ? `${esc(b.fleetNo)}${bad ? ' <span class="badge b-err">⛔</span>' : ''}` : '<em class="miss">No bus</em>'}</div>`; }).join('');
+}
 function countRuns(kind, id) {
   const n = weekDates(mondayOf(todayStr())).flatMap(runsOn).filter(r => r.a[kind] === id).length;
   return n ? `<span class="count">${n}</span>` : '<span class="muted">0</span>';
@@ -549,22 +697,38 @@ function countRuns(kind, id) {
 function listView(type) {
   const E = ENT[type];
   const q = (ui.search[type] || '').toLowerCase();
-  const rows = S[type].filter(x => !q || JSON.stringify(x).toLowerCase().includes(q));
+  const isPax = type === 'passengers';
+  const rf = isPax ? (ui.paxRoute || '') : '';
+  const hay = x => JSON.stringify(x) + (isPax ? ' ' + (route(x.routeId)?.code || '') + ' ' + (route(x.routeId)?.name || '') : '');
+  let rows = S[type].filter(x => !q || hay(x).toLowerCase().includes(q));
+  if (isPax) {
+    if (rf === 'none') rows = rows.filter(x => !route(x.routeId));
+    else if (rf) rows = rows.filter(x => x.routeId === rf);
+    const ri = x => { const i = S.routes.findIndex(r => r.id === x.routeId); return i < 0 ? 1e9 : i; };
+    rows = [...rows].sort((a, b) => ri(a) - ri(b) || (b.active ? 1 : 0) - (a.active ? 1 : 0) || a.name.localeCompare(b.name));
+  }
+  const filterSel = isPax ? `<select class="route-filter" id="paxRoute" aria-label="Filter by route"><option value="">All routes</option>${S.routes.map(r => `<option value="${r.id}" ${rf === r.id ? 'selected' : ''}>${esc(r.code)} · ${esc(r.name)}</option>`).join('')}<option value="none" ${rf === 'none' ? 'selected' : ''}>Unassigned</option></select>` : '';
+  const sub = isPax ? `${S[type].length} on file · ${S[type].filter(p => p.active).length} active · ${S[type].filter(p => p.active && p.wheelchair).length} wheelchair users${q || rf ? ` · ${rows.length} shown` : ''}` : `${S[type].length} on file${q ? ` · ${rows.length} matching` : ''}`;
   return `
   <section class="page-head">
-    <div><h1>${E.title}</h1><p class="muted">${S[type].length} on file${q ? ` · ${rows.length} matching` : ''}</p></div>
-    <div class="head-actions"><input type="search" class="search" data-search="${type}" placeholder="Search ${E.title.toLowerCase()}…" value="${esc(ui.search[type] || '')}" aria-label="Search"><button class="btn btn-primary" data-add="${type}">+ Add ${E.one}</button></div>
+    <div><h1>${E.title}</h1><p class="muted">${sub}</p></div>
+    <div class="head-actions wrap">${filterSel}<input type="search" class="search" data-search="${type}" placeholder="Search ${E.title.toLowerCase()}…" value="${esc(ui.search[type] || '')}" aria-label="Search"><button class="btn btn-primary" data-add="${type}">+ Add ${E.one}</button></div>
   </section>
   <div class="card table-card">
     <table class="list">
       <thead><tr>${E.cols.map(c => `<th>${c[0]}</th>`).join('')}<th class="act-col"><span class="sr">Actions</span></th></tr></thead>
-      <tbody>${rows.map(x => `<tr>${E.cols.map(c => `<td data-label="${c[0]}">${c[1](x)}</td>`).join('')}<td class="act-col"><button class="btn btn-sm" data-edit="${type}" data-id="${x.id}">Edit</button><button class="btn btn-sm btn-danger-ghost" data-del="${type}" data-id="${x.id}" aria-label="Delete">Delete</button></td></tr>`).join('') || `<tr><td colspan="${E.cols.length + 1}" class="empty">Nothing matches “${esc(q)}”.</td></tr>`}</tbody>
+      <tbody>${rows.map(x => `<tr class="${x.active === false ? 'inactive' : ''}">${E.cols.map(c => `<td data-label="${c[0]}"><div class="tdv">${c[1](x)}</div></td>`).join('')}<td class="act-col"><button class="btn btn-sm" data-edit="${type}" data-id="${x.id}">Edit</button><button class="btn btn-sm btn-danger-ghost" data-del="${type}" data-id="${x.id}" aria-label="Delete">Delete</button></td></tr>`).join('') || `<tr><td colspan="${E.cols.length + 1}" class="empty">${q ? `Nothing matches “${esc(q)}”.` : 'Nothing to show.'}</td></tr>`}</tbody>
     </table>
   </div>`;
 }
 ['drivers', 'assistants', 'buses', 'routes'].forEach(t => {
   views[t] = () => listView(t);
 });
+views.passengers = () => {
+  const m = location.hash.match(/[?&]route=([^&]+)/);
+  if (m) { ui.paxRoute = decodeURIComponent(m[1]); history.replaceState(null, '', '#/passengers'); }
+  return listView('passengers');
+};
 
 function fieldHTML(f, item) {
   const v = item[f.k];
@@ -575,6 +739,11 @@ function fieldHTML(f, item) {
     case 'select': return `<label class="${cls}">${lab}<select name="${f.k}"${req}>${f.options.map(o => `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>`;
     case 'textarea': return `<label class="${cls}">${lab}<textarea name="${f.k}" rows="2">${esc(v)}</textarea></label>`;
     case 'checkbox': return `<label class="check ${f.wide ? 'wide' : ''}"><input type="checkbox" name="${f.k}" ${v ? 'checked' : ''}> ${esc(f.label)}</label>`;
+    case 'paxroute': {
+      const rid = v || '';
+      return `<fieldset class="${cls} paxroute"><legend>${esc(f.label)} <em class="req">*</em></legend>
+        <label><span>Route</span><select name="routeId" required><option value="">— Choose a route —</option>${S.routes.map(r => `<option value="${r.id}" ${r.id === rid ? 'selected' : ''}>${esc(r.code)} · ${esc(r.name)}</option>`).join('')}</select></label>
+        <div class="run-checks" id="runChecks">${runChecks(rid, item.runs)}</div></fieldset>`; }
     case 'days': return `<fieldset class="${cls} days"><legend>${esc(f.label)}</legend>${[1, 2, 3, 4, 5, 6, 0].map(d => `<label><input type="checkbox" name="day" value="${d}" ${(v || []).includes(d) ? 'checked' : ''}> ${DAY_NAMES[d]}</label>`).join('')}</fieldset>`;
     case 'run': { const r = v || {}; return `<fieldset class="${cls} runf"><legend>${esc(f.label)}${f.req ? ' <em class="req">*</em>' : ''}</legend>
       <label><span>Label</span><input name="${f.k}_label" value="${esc(r.label || '')}" placeholder="AM"${req}></label>
@@ -583,10 +752,16 @@ function fieldHTML(f, item) {
     default: return `<label class="${cls}">${lab}<input name="${f.k}" type="${f.type || 'text'}" value="${esc(v)}"${f.min ? ` min="${f.min}"` : ''}${f.ph ? ` placeholder="${esc(f.ph)}"` : ''}${req}></label>`;
   }
 }
+function runChecks(routeId, sel) {
+  const r = route(routeId);
+  if (!r) return '<span class="muted small">Pick a route to choose its runs.</span>';
+  return `<span class="small muted">Rides on:</span>${r.runs.map(x => `<label><input type="checkbox" name="paxrun" value="${esc(x.id)}" ${(sel || []).includes(x.id) ? 'checked' : ''}> ${esc(x.label)} <span class="muted small">${fmtTime(x.start)}</span></label>`).join('')}`;
+}
 function openEntityForm(type, id) {
   const E = ENT[type];
   let item = id ? S[type].find(x => x.id === id) : null;
-  const blank = { drivers: { licenceClass: 'MR', status: 'Active', authExpiry: addDays(todayStr(), 365) }, assistants: { status: 'Active' }, buses: { status: 'In service', licenceReq: 'MR', capacity: 45 }, routes: { type: 'School', days: [1, 2, 3, 4, 5], run1: { label: 'AM', start: '07:00', end: '08:15' }, run2: { label: 'PM', start: '15:00', end: '16:15' }, minCapacity: 33, active: true } }[type];
+  const blank = { drivers: { licenceClass: 'MR', status: 'Active', authExpiry: addDays(todayStr(), 365) }, assistants: { status: 'Active' }, buses: { status: 'In service', licenceReq: 'MR', capacity: 45 }, routes: { type: 'School', days: [1, 2, 3, 4, 5], run1: { label: 'AM', start: '07:00', end: '08:15' }, run2: { label: 'PM', start: '15:00', end: '16:15' }, minCapacity: 33, active: true },
+    passengers: (() => { const r = route(ui.paxRoute) || null; return { routeId: r ? r.id : '', runs: r ? r.runs.map(x => x.id) : [], active: true, wheelchair: false }; })() }[type];
   const view = item ? { ...item } : { ...blank };
   if (type === 'routes' && item) { view.run1 = item.runs[0]; view.run2 = item.runs[1]; }
   openModal(`${item ? 'Edit' : 'Add'} ${E.one}`, `<div class="form-grid">${E.fields.map(f => fieldHTML(f, view)).join('')}</div><p class="form-err" id="formErr" hidden></p>`,
@@ -602,6 +777,7 @@ function openEntityForm(type, id) {
         else if (fl.type === 'number') data[fl.k] = Number(f[fl.k].value) || 0;
         else if (fl.type === 'days') data.days = $$('input[name=day]:checked', f).map(c => +c.value);
         else if (fl.type === 'run') { /* handled below */ }
+        else if (fl.type === 'paxroute') { data.routeId = f.routeId.value; data.runs = $$('input[name=paxrun]:checked', f).map(c => c.value); }
         else data[fl.k] = f[fl.k].value.trim();
       }
       if (type === 'routes') {
@@ -618,11 +794,16 @@ function openEntityForm(type, id) {
         if (!data.days.length) { err.textContent = 'Pick at least one day.'; err.hidden = false; return false; }
         data.runs = runs;
       }
+      if (type === 'passengers' && !data.runs.length) { err.textContent = 'Tick at least one run (e.g. AM and/or PM).'; err.hidden = false; return false; }
       const dupKey = { drivers: 'authNo', buses: 'rego', routes: 'code' }[type];
       if (dupKey && S[type].some(x => x.id !== item?.id && x[dupKey].toLowerCase() === data[dupKey].toLowerCase())) { err.textContent = `Another ${E.one} already has that ${dupKey === 'authNo' ? 'authorisation number' : dupKey}.`; err.hidden = false; return false; }
       if (item) Object.assign(item, data); else { item = { id: uid(E.id), ...data }; S[type].push(item); }
       save(); toast(`${id ? 'Saved' : 'Added'} ${data.name || data.fleetNo || data.code}`); render();
     });
+  if (type === 'passengers') {
+    const sel = $('#modalForm [name=routeId]');
+    sel.addEventListener('change', () => { const r = route(sel.value); $('#runChecks').innerHTML = runChecks(sel.value, r ? r.runs.map(x => x.id) : []); });
+  }
 }
 function deleteEntity(type, id) {
   const E = ENT[type];
@@ -630,12 +811,19 @@ function deleteEntity(type, id) {
   const label = x.name || `${x.fleetNo || x.code}`;
   let n = 0;
   const kind = { drivers: 'driverId', assistants: 'assistantId', buses: 'busId' }[type];
+  if (type === 'passengers') {
+    if (!confirm(`Delete passenger ${label}?\nTip: untick “Active” instead to keep their details on file.`)) return;
+    S.passengers = S.passengers.filter(i => i.id !== id);
+    save(); toast(`Deleted ${label}`); render(); return;
+  }
   if (kind) n = Object.values(S.assignments).filter(a => a[kind] === id).length;
   else n = Object.keys(S.assignments).filter(k => k.split('|')[1] === id).length;
-  if (!confirm(`Delete ${label}?${n ? `\nThis also removes them from ${n} rostered run${n === 1 ? '' : 's'}.` : ''}`)) return;
+  const np = type === 'routes' ? S.passengers.filter(p => p.routeId === id).length : 0;
+  if (!confirm(`Delete ${label}?${n ? `\nThis also removes them from ${n} rostered run${n === 1 ? '' : 's'}.` : ''}${np ? `\n${np} passenger${np === 1 ? '' : 's'} on this route will become unassigned.` : ''}`)) return;
   S[type] = S[type].filter(i => i.id !== id);
   if (kind) Object.values(S.assignments).forEach(a => { if (a[kind] === id) a[kind] = null; });
   else Object.keys(S.assignments).forEach(k => { if (k.split('|')[1] === id) delete S.assignments[k]; });
+  if (type === 'routes') S.passengers.forEach(p => { if (p.routeId === id) { p.routeId = ''; p.runs = []; } });
   save(); toast(`Deleted ${label}`); render();
   void E;
 }
@@ -649,7 +837,8 @@ function tripRows(from, to) {
       if (!r.a.driverId && !r.a.busId) continue;
       const dv = driver(r.a.driverId), b = bus(r.a.busId), as = assistant(r.a.assistantId);
       const status = d < t || (d === t && toMin(r.end) <= nm) ? 'Completed' : 'Scheduled';
-      out.push({ date: d, start: r.start, end: r.end, route: r.route.code, run: r.run.label, routeName: r.route.name, driver: dv?.name || '', authNo: dv?.authNo || '', licence: dv?.licenceClass || '', fleetNo: b?.fleetNo || '', rego: b?.rego || '', assistant: as?.name || '', note: r.a.note || '', status });
+      const px = paxOnRun(r);
+      out.push({ date: d, start: r.start, end: r.end, route: r.route.code, run: r.run.label, routeName: r.route.name, driver: dv?.name || '', authNo: dv?.authNo || '', licence: dv?.licenceClass || '', fleetNo: b?.fleetNo || '', rego: b?.rego || '', assistant: as?.name || '', pax: px.length, paxNames: px.map(p => p.name).join('; '), note: r.a.note || '', status });
     }
   }
   void now;
@@ -670,17 +859,17 @@ views.trips = () => {
   </section>
   <div class="card table-card">
     <table class="list trips">
-      <thead><tr><th>Date</th><th>Time</th><th>Route</th><th>Driver</th><th>Auth no.</th><th>Bus / rego</th><th>Assistant</th><th>Status</th></tr></thead>
-      <tbody>${rows.map(r => `<tr><td data-label="Date">${esc(fmtDate(r.date))}</td><td data-label="Time">${fmtTime(r.start)}–${fmtTime(r.end)}</td><td data-label="Route"><strong>${esc(r.route)} ${esc(r.run)}</strong></td><td data-label="Driver">${esc(r.driver) || '<em class="miss">—</em>'}</td><td data-label="Auth no.">${esc(r.authNo)}</td><td data-label="Bus / rego">${esc(r.fleetNo)} <span class="rego">${esc(r.rego)}</span></td><td data-label="Assistant">${esc(r.assistant)}</td><td data-label="Status"><span class="badge ${r.status === 'Completed' ? 'b-ok' : ''}">${r.status}</span></td></tr>`).join('') || '<tr><td colspan="8" class="empty">No trips in this range.</td></tr>'}</tbody>
+      <thead><tr><th>Date</th><th>Time</th><th>Route</th><th>Driver</th><th>Auth no.</th><th>Bus / rego</th><th>Assistant</th><th>Pax</th><th>Status</th></tr></thead>
+      <tbody>${rows.map(r => `<tr><td data-label="Date">${esc(fmtDate(r.date))}</td><td data-label="Time">${fmtTime(r.start)}–${fmtTime(r.end)}</td><td data-label="Route"><strong>${esc(r.route)} ${esc(r.run)}</strong></td><td data-label="Driver">${esc(r.driver) || '<em class="miss">—</em>'}</td><td data-label="Auth no.">${esc(r.authNo)}</td><td data-label="Bus / rego">${esc(r.fleetNo)} <span class="rego">${esc(r.rego)}</span></td><td data-label="Assistant">${esc(r.assistant)}</td><td data-label="Pax" title="${esc(r.paxNames)}">${r.pax || '<span class="muted">0</span>'}</td><td data-label="Status"><span class="badge ${r.status === 'Completed' ? 'b-ok' : ''}">${r.status}</span></td></tr>`).join('') || '<tr><td colspan="9" class="empty">No trips in this range.</td></tr>'}</tbody>
     </table>
   </div>
   <p class="muted small">${rows.length} trip${rows.length === 1 ? '' : 's'}. In the real app this log would be locked once a trip is completed and kept for the required retention period.</p>`;
 };
 function exportCSV() {
   const rows = tripRows(ui.tripFrom, ui.tripTo);
-  const head = ['Date', 'Start', 'End', 'Route', 'Run', 'Route name', 'Driver', 'Driver authorisation no.', 'Licence class', 'Fleet no.', 'Bus rego', 'Assistant', 'Note', 'Status'];
+  const head = ['Date', 'Start', 'End', 'Route', 'Run', 'Route name', 'Driver', 'Driver authorisation no.', 'Licence class', 'Fleet no.', 'Bus rego', 'Assistant', 'Passengers', 'Passenger names', 'Note', 'Status'];
   const q = v => `"${String(v).replace(/"/g, '""')}"`;
-  const csv = [head, ...rows.map(r => [r.date, r.start, r.end, r.route, r.run, r.routeName, r.driver, r.authNo, r.licence, r.fleetNo, r.rego, r.assistant, r.note, r.status])].map(l => l.map(q).join(',')).join('\r\n');
+  const csv = [head, ...rows.map(r => [r.date, r.start, r.end, r.route, r.run, r.routeName, r.driver, r.authNo, r.licence, r.fleetNo, r.rego, r.assistant, r.pax, r.paxNames, r.note, r.status])].map(l => l.map(q).join(',')).join('\r\n');
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = `roster-run-trips-${ui.tripFrom}-to-${ui.tripTo}.csv`;
@@ -706,10 +895,21 @@ views.runsheet = () => {
       return `<tr><td class="nowrap"><strong>${fmtTime(r.start)}</strong><br>${fmtTime(r.end)}</td><td><strong>${esc(r.route.code)} ${esc(r.run.label)}</strong><br>${esc(r.route.name)}<div class="small muted">${esc(r.route.area)}</div>${r.a.note ? `<div class="small">Note: ${esc(r.a.note)}</div>` : ''}${is.filter(i => i.sev === 'err').map(i => `<div class="small txt-err">⛔ ${esc(i.msg)}</div>`).join('')}</td>
       <td>${dv ? `${esc(dv.name)}<div class="small muted">Auth ${esc(dv.authNo)}<br>${esc(dv.phone)}</div>` : '<em class="miss">UNFILLED</em>'}</td>
       <td>${b ? `${esc(b.fleetNo)}<div class="small muted">${esc(b.rego)}<br>${b.capacity} seats</div>` : '<em class="miss">UNFILLED</em>'}</td>
-      <td>${a ? esc(a.name) : r.route.needsAssistant ? '<em class="miss">NEEDED</em>' : '—'}</td><td class="blank"></td><td class="blank"></td></tr>`; }).join('')}</tbody></table>` : '<p class="empty">No runs on this day.</p>'}
+      <td>${a ? esc(a.name) : r.route.needsAssistant ? '<em class="miss">NEEDED</em>' : '—'}</td><td class="blank"></td><td class="blank"></td></tr>
+      ${manifestRow(r)}`; }).join('')}</tbody></table>` : '<p class="empty">No runs on this day.</p>'}
     <footer class="sheet-foot small muted">Printed ${esc(fmtShort(todayStr()))} · Report vehicle defects to the workshop before departure.</footer>
   </article>`;
 };
+
+function manifestRow(r) {
+  const px = paxOnRun(r);
+  if (!px.length) return `<tr class="manifest"><td></td><td colspan="6" class="small muted">Passenger manifest: no passengers booked.</td></tr>`;
+  return `<tr class="manifest"><td></td><td colspan="6">
+    <div class="manifest-title">Passenger manifest – ${esc(r.route.code)} ${esc(r.run.label)} · ${px.length} passenger${px.length === 1 ? '' : 's'}${px.some(p => p.wheelchair) ? ` · ${px.filter(p => p.wheelchair).length} wheelchair` : ''}</div>
+    <table class="manifest-table"><thead><tr><th>#</th><th>Passenger</th><th>Pickup stop</th><th>Contact</th><th>Medical / notes</th><th>On</th><th>Off</th></tr></thead><tbody>
+    ${px.map((p, i) => `<tr><td>${i + 1}</td><td><strong>${esc(p.name)}</strong>${p.wheelchair ? ' ♿' : ''}</td><td>${esc(p.stop)}</td><td>${esc(p.guardian)}<br><span class="muted">${esc(p.phone)}</span></td><td>${esc(p.notes)}</td><td class="tick">☐</td><td class="tick">☐</td></tr>`).join('')}
+    </tbody></table></td></tr>`;
+}
 
 /* ---------- global events ---------- */
 document.addEventListener('click', e => {
@@ -754,10 +954,11 @@ document.addEventListener('change', e => {
   if (t.id === 'tripFrom' && t.value) { ui.tripFrom = t.value; render(); }
   if (t.id === 'tripTo' && t.value) { ui.tripTo = t.value; render(); }
   if (t.id === 'sheetDate' && t.value) { ui.sheetDate = t.value; render(); }
+  if (t.id === 'paxRoute') { ui.paxRoute = t.value; render(); }
 });
 $('#resetBtn').addEventListener('click', () => {
   if (!confirm('Reset all demo data? Your changes in this browser will be lost.')) return;
-  S = seed(); save(); ui.week = mondayOf(todayStr()); ui.day = todayStr(); ui.search = {}; toast('Demo data reset'); render();
+  S = seed(); save(); ui.week = mondayOf(todayStr()); ui.day = todayStr(); ui.search = {}; ui.paxRoute = ''; toast('Demo data reset – passengers included'); render();
 });
 let lastW = innerWidth;
 addEventListener('resize', () => { if (currentView === 'roster' && !ui.rosterMode && (lastW < 900) !== (innerWidth < 900)) render(); lastW = innerWidth; });
