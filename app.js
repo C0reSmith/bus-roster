@@ -2,7 +2,9 @@
 (() => {
 'use strict';
 
-const STORE_KEY = 'rosterrun.v1';
+const STORE_KEY = 'rosterrun.v2';
+const DATA_VERSION = 2;
+try { localStorage.removeItem('rosterrun.v1'); } catch {}
 const EXPIRY_WARN_DAYS = 30;
 const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DAY_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -36,7 +38,7 @@ function seed() {
   const mon = mondayOf(t);
   const exp = n => addDays(t, n);
   const drivers = [
-    ['d1','Karen Whitfield','0412 381 904','HR','DA-418 227', exp(410),'Active','Senior driver, Rosewood depot'],
+    ['d1','Karen Whitfield','0412 381 904','HR','DA-418 227', exp(410),'Active','Senior driver, Wattle Creek depot'],
     ['d2','Tama Ngata','0438 220 517','HR','DA-503 961', exp(265),'Active',''],
     ['d3','Bronwyn Keogh','0401 776 312','HR','DA-377 140', exp(9),'Active','Renewal paperwork lodged?'],
     ['d4','Daniel Pham','0455 913 208','MR','DA-612 885', exp(540),'Active',''],
@@ -77,14 +79,14 @@ function seed() {
     ({ id,code,name,type,area,days,runs:runs.map(([rid,label,start,end]) => ({ id:rid,label,start,end })),minCapacity,needsAssistant,wheelchair,notes,active:true });
   const wk = [1,2,3,4,5];
   const routes = [
-    R('r1','S101','Rosewood – Ipswich schools','School','Rosewood, Walloon, Thagoona, Ipswich CBD',wk,[['AM','AM','07:00','08:25'],['PM','PM','15:00','16:20']],57,true,false,'Primary + secondary students'),
-    R('r2','S102','Karalee – Brassall loop','School','Karalee, Barellan Point, Brassall, North Ipswich',wk,[['AM','AM','07:15','08:30'],['PM','PM','15:05','16:10']],45,false,false,''),
-    R('r3','S103','Ripley Valley – Springfield','School','Ripley, South Ripley, Deebing Heights, Springfield Central',wk,[['AM','AM','06:50','08:15'],['PM','PM','14:55','16:15']],57,true,false,'Busiest school run'),
-    R('r4','S104','Redbank Plains – Goodna','School','Redbank Plains, Bellbird Park, Goodna',wk,[['AM','AM','07:20','08:20'],['PM','PM','15:10','16:00']],33,false,false,''),
-    R('r5','S105','Special assistance – Yamanto/Raceview','School','Yamanto, Raceview, Flinders View, Bundamba',wk,[['AM','AM','07:30','08:40'],['PM','PM','14:45','15:50']],12,true,true,'Wheelchair-accessible vehicle required'),
-    R('r6','S106','Walloon – Rosewood','School','Walloon, Haigslea, Rosewood',wk,[['AM','AM','07:05','08:10'],['PM','PM','15:00','16:05']],33,false,false,''),
-    R('r7','R201','Booval – Bundamba shopper shuttle','Shuttle','Booval Fair, Bundamba, Riverlink',[1,3,5],[['MID','Midday','09:30','13:00']],22,false,true,'Seniors shuttle'),
-    R('r8','C301','Saturday junior sport charter','Charter','Ipswich CBD → Brisbane venues',[6],[['DAY','Day','07:30','13:30']],57,true,false,'Supervised junior sport team'),
+    R('r1','S101','Wattle Creek – Kellerton schools','School','Wattle Creek, Bindarra, Coolabah Flats, Kellerton CBD',wk,[['AM','AM','07:00','08:25'],['PM','PM','15:00','16:20']],57,true,false,'Primary + secondary students'),
+    R('r2','S102','Tallowood – Brackenvale loop','School','Tallowood, Heron Point, Brackenvale, North Kellerton',wk,[['AM','AM','07:15','08:30'],['PM','PM','15:05','16:10']],45,false,false,''),
+    R('r3','S103','Silverleaf Valley – Larkspur','School','Silverleaf, South Silverleaf, Ferngate Heights, Larkspur Central',wk,[['AM','AM','06:50','08:15'],['PM','PM','14:55','16:15']],57,true,false,'Busiest school run'),
+    R('r4','S104','Ironbark Plains – Glenhollow','School','Ironbark Plains, Whipbird Park, Glenhollow',wk,[['AM','AM','07:20','08:20'],['PM','PM','15:10','16:00']],33,false,false,''),
+    R('r5','S105','Special assistance – Yarrabee/Millview','School','Yarrabee, Millview, Copperview, Bunyarra',wk,[['AM','AM','07:30','08:40'],['PM','PM','14:45','15:50']],12,true,true,'Wheelchair-accessible vehicle required'),
+    R('r6','S106','Bindarra – Wattle Creek','School','Bindarra, Hazelgrove, Wattle Creek',wk,[['AM','AM','07:05','08:10'],['PM','PM','15:00','16:05']],33,false,false,''),
+    R('r7','R201','Bramblewood – Bunyarra shopper shuttle','Shuttle','Bramblewood Fair, Bunyarra, Riverbend Plaza',[1,3,5],[['MID','Midday','09:30','13:00']],22,false,true,'Seniors shuttle'),
+    R('r8','C301','Saturday junior sport charter','Charter','Kellerton CBD → Harbourton venues',[6],[['DAY','Day','07:30','13:30']],57,true,false,'Supervised junior sport team'),
   ];
   // default crews
   const crew = { r1:['d1','a1','b1'], r2:['d2',null,'b2'], r3:['d3','a2','b3'], r4:['d4',null,'b4'], r5:['d5','a3','b5'], r6:['d6',null,'b6'], r7:['d7',null,'b8'], r8:['d8','a4','b9'] };
@@ -111,14 +113,14 @@ function seed() {
   set(3,'r4','PM',{ driverId:'d3', note:'Daniel off early – cover' });       // clashes with S103 PM
   set(4,'r2','AM',{ busId:'b7' });                                           // bus out of service
   set(3,'r5','AM',{ driverId:null });                                        // unfilled
-  return { version:1, seededOn:t, drivers, assistants, buses, routes, assignments };
+  return { version:DATA_VERSION, seededOn:t, drivers, assistants, buses, routes, assignments };
 }
 
 /* ---------- state ---------- */
 let S;
 function load() {
   try { S = JSON.parse(localStorage.getItem(STORE_KEY)); } catch { S = null; }
-  if (!S || S.version !== 1) { S = seed(); save(); }
+  if (!S || S.version !== DATA_VERSION) { S = seed(); save(); }
 }
 function save() { localStorage.setItem(STORE_KEY, JSON.stringify(S)); }
 const ui = { week: mondayOf(todayStr()), day: todayStr(), rosterMode: null, palette: 'drivers', search: {}, tripFrom: null, tripTo: null, sheetDate: todayStr() };
@@ -659,7 +661,7 @@ views.trips = () => {
   const rows = tripRows(ui.tripFrom, ui.tripTo);
   return `
   <section class="page-head">
-    <div><h1>Trip log</h1><p class="muted">Who drove which bus, when – the record a Queensland operator keeps for each trip (driver, authorisation no., vehicle rego, date and times).</p></div>
+    <div><h1>Trip log</h1><p class="muted">Who drove which bus, when – the record a bus operator keeps for each trip (driver, authorisation no., vehicle rego, date and times).</p></div>
     <div class="head-actions wrap">
       <label class="inline">From <input type="date" id="tripFrom" value="${ui.tripFrom}"></label>
       <label class="inline">To <input type="date" id="tripTo" value="${ui.tripTo}"></label>
@@ -698,7 +700,7 @@ views.runsheet = () => {
     <div class="head-actions"><input type="date" id="sheetDate" value="${d}" aria-label="Date"><button class="btn btn-primary" data-act="print">Print</button></div>
   </section>
   <article class="sheet card">
-    <header class="sheet-head"><div><h2>Run sheet – ${esc(fmtDateLong(d))}</h2><p class="muted">Roster Run · Ipswich depot · DEMO DATA</p></div><img src="icon.svg" alt="" width="44" height="44"></header>
+    <header class="sheet-head"><div><h2>Run sheet – ${esc(fmtDateLong(d))}</h2><p class="muted">Roster Run · Kellerton depot · DEMO DATA</p></div><img src="icon.svg" alt="" width="44" height="44"></header>
     ${runs.length ? `<table class="sheet-table"><thead><tr><th>Time</th><th>Run</th><th>Driver</th><th>Bus</th><th>Assistant</th><th>Odo out / in</th><th>Sign</th></tr></thead><tbody>
     ${runs.map(r => { const dv = driver(r.a.driverId), b = bus(r.a.busId), a = assistant(r.a.assistantId); const is = iss[r.key] || [];
       return `<tr><td class="nowrap"><strong>${fmtTime(r.start)}</strong><br>${fmtTime(r.end)}</td><td><strong>${esc(r.route.code)} ${esc(r.run.label)}</strong><br>${esc(r.route.name)}<div class="small muted">${esc(r.route.area)}</div>${r.a.note ? `<div class="small">Note: ${esc(r.a.note)}</div>` : ''}${is.filter(i => i.sev === 'err').map(i => `<div class="small txt-err">⛔ ${esc(i.msg)}</div>`).join('')}</td>
